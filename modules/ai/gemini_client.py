@@ -11,8 +11,12 @@ logger = logging.getLogger("ForensicLens.AI")
 
 class GeminiClient:
     def __init__(self):
-        self.default_model = "gemini-3.6-flash"
-        self.fallback_model = "gemini-flash-latest"
+        self.default_model = "gemini-1.5-flash"
+        self.fallback_models = [
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-pro-latest",
+            "gemini-flash-latest"
+        ]
         self._client = None
         self._api_key = None
 
@@ -67,7 +71,7 @@ class GeminiClient:
         config = types.GenerateContentConfig(**config_args)
 
         # Attempt with primary model, then fallback if needed
-        models_to_try = [self.default_model, self.fallback_model]
+        models_to_try = [self.default_model] + self.fallback_models
         last_error = None
 
         for model_name in models_to_try:
