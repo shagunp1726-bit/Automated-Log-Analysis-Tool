@@ -1,15 +1,25 @@
-# Environments
 .env
-.venv
-env/
+.env.*
+!.env.example
+
 venv/
-ENV/
+.venv/
+env/
 
-# Python
 __pycache__/
-*.py[cod]
-*$py.class
+*.pyc
 
-# OS generated files
+*.pyo
+*.pyd
+
+.pytest_cache/
+
+uploads/
+reports/
+logs/
+
 .DS_Store
 Thumbs.db
+
+.vscode/
+.idea/

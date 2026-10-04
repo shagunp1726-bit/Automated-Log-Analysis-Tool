@@ -11,10 +11,11 @@ logger = logging.getLogger("ForensicLens.AI")
 
 class GeminiClient:
     def __init__(self):
-        self.default_model = "gemini-1.5-flash"
+        self.default_model = "gemini-2.0-flash"
         self.fallback_models = [
-            "gemini-1.5-flash-latest",
-            "gemini-1.5-pro-latest",
+            "gemini-1.5-flash-002",
+            "gemini-1.5-flash",
+            "gemini-pro",
             "gemini-flash-latest"
         ]
         self._client = None

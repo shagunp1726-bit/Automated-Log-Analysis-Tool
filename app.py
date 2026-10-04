@@ -6,6 +6,11 @@ from flask import (
 import os
 import uuid
 import json
+import logging
+from werkzeug.utils import secure_filename
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from modules.workspace_manager import create_workspace, cleanup_workspace
 from modules.parser import parse_logs
@@ -40,7 +45,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 app = Flask(__name__)
-app.secret_key = "forensiclens-secret-key"
+app.secret_key = os.getenv("SECRET_KEY", "forensiclens-secret-key")
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max
 
 from modules.ai import ForensicAnalyst, SplunkQueryBot
@@ -131,22 +136,50 @@ def resolve_case(case_id):
 def index():
     return render_template("index.html", logged_in=session.get("logged_in"), username=session.get("username"))
 
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"})
+
 
 @app.route("/upload", methods=["POST"])
 def upload():
     workspace = create_workspace()
     case_id = str(uuid.uuid4())
 
+    if not request.files:
+        logger.warning("Upload failed: No files uploaded")
+        return jsonify({"error": "No files uploaded"}), 400
+
     uploaded_files = request.files.getlist("logfiles")
     log_paths = []
 
-    for f in uploaded_files:
-        path = os.path.join(workspace, f.filename)
-        f.save(path)
-        log_paths.append(path)
+    if not uploaded_files or uploaded_files[0].filename == '':
+        logger.warning("Upload failed: No selected file")
+        return jsonify({"error": "No selected file"}), 400
 
-    # Enhanced parsing pipeline
-    events, diagnostics = parse_logs(log_paths, request.form.get("manual_platform"), request.form.get("manual_log_type"))
+    try:
+        for f in uploaded_files:
+            if f and f.filename:
+                filename = secure_filename(f.filename)
+                path = os.path.join(workspace, filename)
+                f.save(path)
+                log_paths.append(path)
+        if not log_paths:
+            logger.warning("Upload failed: Failed to save uploaded files")
+            return jsonify({"error": "Failed to save uploaded files"}), 400
+        logger.info(f"File uploaded successfully for case {case_id}: {len(log_paths)} files")
+    except Exception as e:
+        logger.error(f"File upload failed for case {case_id}: {e}")
+        return jsonify({"error": "File upload failed", "details": str(e)}), 500
+
+    try:
+        # Enhanced parsing pipeline
+        logger.info(f"Parsing started for case {case_id}")
+        events, diagnostics = parse_logs(log_paths, request.form.get("manual_platform"), request.form.get("manual_log_type"))
+        logger.info(f"Parsing completed for case {case_id}: {len(events)} events parsed")
+    except Exception as e:
+        logger.error(f"Error occurred during parsing for case {case_id}: {e}")
+        return jsonify({"error": "Error occurred during parsing", "details": str(e)}), 500
     mitre_techniques = map_mitre(events)
     attacks = detect_attacks(events)
     incident_type = classify_incident(events, attacks)
@@ -249,6 +282,7 @@ def upload():
     session[case_id] = {"workspace": workspace}
 
     session["current_case"] = case_id
+    logger.info(f"Analysis completed successfully for case {case_id}")
     return redirect(url_for("chain_of_custody"))
 
 

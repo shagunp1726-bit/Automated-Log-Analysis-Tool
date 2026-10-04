@@ -81,6 +81,8 @@ class AndroidParser(BaseParser):
         event["category"] = "system"
         event["type"] = "SYSTEM_EVENT"
         event["event_type"] = "application_activity"
+        event["hostname"] = "AndroidDevice"  # Default hostname for entity graph
+        event["process"] = tag  # Default process to tag for entity graph
 
         # Inspect specific tags
         if tag == "ActivityManager":
@@ -91,6 +93,7 @@ class AndroidParser(BaseParser):
                 event["event_type"] = "application_launch"
                 event["package_name"] = m_start.group("package")
                 event["application"] = m_start.group("package")
+                event["process"] = m_start.group("package")  # Map package to process
         elif tag == "PackageManager":
             event["category"] = "endpoint"
             m_inst = self.pkg_install_pattern.search(msg)
@@ -98,11 +101,13 @@ class AndroidParser(BaseParser):
                 event["type"] = "FILE_CREATE"
                 event["event_type"] = "package_installed"
                 event["package_name"] = m_inst.group("package")
+                event["process"] = m_inst.group("package")
             m_rem = self.pkg_remove_pattern.search(msg)
             if m_rem:
                 event["type"] = "FILE_DELETE"
                 event["event_type"] = "package_removed"
                 event["package_name"] = m_rem.group("package")
+                event["process"] = m_rem.group("package")
         elif tag in ["vold", "installd", "keystore"]:
             event["category"] = "system"
         elif tag == "SELinux":
