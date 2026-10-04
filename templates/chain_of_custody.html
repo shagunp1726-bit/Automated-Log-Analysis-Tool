@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Chain of Custody</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+<!-- HEADER -->
+<div class="header">
+    <div class="brand">
+        <div class="brand-icon">🛡</div>
+        <div>
+            <h1>ForensicLens</h1>
+            <span>Chain of Custody</span>
+        </div>
+    </div>
+</div>
+
+<div class="container" style="max-width:620px">
+
+    <div class="panel">
+        <h2>Chain of Custody</h2>
+        <p class="subtitle" style="text-align:left">
+            Enter investigator details for official forensic documentation.
+        </p>
+
+        <form method="POST">
+
+            <div class="field">
+                👤 <input name="investigator_name" placeholder="Investigator Name" required>
+            </div>
+
+            <div class="field" style="margin-top:12px">
+                🆔 <input name="investigator_id" placeholder="Investigator ID" required>
+            </div>
+
+            <div class="field" style="margin-top:12px">
+                🏢 <input name="organization" placeholder="Organization / Institution" required>
+            </div>
+
+            <button type="submit" style="width:100%;margin-top:24px">
+                Continue
+            </button>
+
+        </form>
+    </div>
+
+</div>
+
+</body>
+</html>

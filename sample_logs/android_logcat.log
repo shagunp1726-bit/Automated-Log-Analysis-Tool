@@ -1,0 +1,19 @@
+03-15 11:00:01.102  1000  1000 I system_server: Entered the Android system server!
+03-15 11:00:03.450  1000  1015 I ActivityManager: System server started 14 services
+03-15 11:00:05.612  1000  1020 I vold: Vold 3.0 initialized successfully
+03-15 11:00:08.890  1000  1025 I installd: installd version 2.0 ready for requests
+03-15 11:01:40.115  1000  1030 I ActivityManager: Start proc 2150:com.android.settings/1000 for activity com.android.settings/.Settings
+03-15 11:02:15.340  1000  1050 I PackageManager: installPackageLI: publicUrl=null file=/data/local/tmp/fake_update.apk package=com.secure.bank.authenticator
+03-15 11:02:40.110  1000  1065 I ActivityManager: Start proc 7310:com.secure.bank.authenticator/u0a215 for activity com.secure.bank.authenticator/.MainActivity
+03-15 11:02:41.225  7310  7310 D Authenticator: Initializing fake overlay accessibility service
+03-15 11:02:50.600  1000  1070 I ActivityManager: Start proc 7345:com.secure.bank.authenticator:core/u0a215 for service com.secure.bank.authenticator/.SpyService
+03-15 11:03:02.180  7345  7360 I ActivityManager: Start proc 7390:com.secure.bank.authenticator:network/u0a215 for broadcast
+03-15 11:03:15.890   120   120 W SELinux : avc: denied { read write } for pid=7310 comm="bank.authenticator" scontext=u:r:untrusted_app:s0:c215,c512 tcontext=u:r:system_data_file:s0 tclass=file permissive=0
+03-15 11:03:22.410   120   120 W SELinux : avc: denied { ptrace } for pid=7310 comm="bank.authenticator" scontext=u:r:untrusted_app:s0:c215,c512 tcontext=u:r:system_server:s0 tclass=process permissive=0
+03-15 11:03:45.710   120   120 W SELinux : avc: denied { ioctl } for pid=7345 comm="SpyService" path="/dev/binder" scontext=u:r:untrusted_app:s0:c215,c512 tcontext=u:r:device:s0 tclass=chr_file permissive=0
+03-15 11:04:05.150  1000  1080 I PackageManager: deletePackageX: packageName=com.antivirus.mobilesecurity userHandle=0
+W/PackageManager( 1000): Unknown package com.antivirus.mobilesecurity removed by device policy controller
+03-15 11:04:30.220  1000  1080 I PackageManager: deletePackageX: packageName=com.lookout.security userHandle=0
+03-15 11:05:10.020  7310  7310 E AndroidRuntime: FATAL EXCEPTION: main Process: com.secure.bank.authenticator, PID: 7310
+03-15 11:05:10.022  7310  7310 E AndroidRuntime: java.lang.SecurityException: Permission Denial: reading contacts requires READ_CONTACTS
+03-15 11:05:11.100  1000  1065 W ActivityManager: Force finishing activity com.secure.bank.authenticator/.MainActivity

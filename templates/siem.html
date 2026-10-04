@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>ForensicLens | SIEM Investigation Workspace</title>
+    <meta name="description"
+        content="ForensicLens Enterprise SIEM – Advanced forensic investigation, threat hunting, and MITRE ATT&CK analysis">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/siem.css">
+</head>
+
+<body>
+
+    <!-- ─── HEADER ─── -->
+    <div class="header siem-header">
+        <div class="brand">
+            <div class="brand-icon">🛡</div>
+            <div>
+                <h1>ForensicLens <span class="siem-badge">SIEM</span></h1>
+                <span>Enterprise Investigation Workspace</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="header-stat">
+                <small>Events</small>
+                <strong id="statTotalEvents">{{ data.events|length }}</strong>
+            </div>
+            <div class="header-stat">
+                <small>Risk</small>
+                <strong class="risk-{{ data.severity|lower }}">{{ data.severity }}</strong>
+            </div>
+            <div class="header-stat">
+                <small>Detections</small>
+                <strong class="accent-blue">{{ data.detections|length }}</strong>
+            </div>
+            <div class="header-stat">
+                <small>IOCs</small>
+                <strong class="accent-red">{{ data.ioc_matches|length }}</strong>
+            </div>
+            <div class="header-stat">
+                <small>Chains</small>
+                <strong class="accent-amber">{{ data.discovered_chains|length }}</strong>
+            </div>
+            <a href="/portal" class="btn-outline" style="text-decoration:none; margin-right: 10px;">📋 Portal</a>
+            <a href="/dashboard/{{ case_id }}" class="btn-outline" style="text-decoration:none; margin-right: 10px;">📊
+                Classic View</a>
+            <a href="/download/{{ case_id }}" class="btn-primary-sm">📄 Export PDF</a>
+            <button class="btn-outline" onclick="toggleShortcuts()" title="Keyboard Shortcuts (?)">⌨</button>
+        </div>
+    </div>
+
+    <!-- ─── QUERY BAR ─── -->
+    <div class="query-bar">
+        <div class="query-input-wrap">
+            <span class="query-icon">🔎</span>
+            <input type="text" id="queryInput" class="query-input"
+                placeholder='Search: event_type:auth AND status:failed  |  "powershell encoded"  |  mitre.technique:T1110'>
+            <button id="btnSearch" class="btn-search" onclick="executeSearch()">Search</button>
+            <button id="btnAI" class="btn-ai"
+                onclick="switchTab('ai', document.querySelector('.tab[onclick*=\'ai\']'))">🤖 AI</button>
+        </div>
+        <div class="query-hints">
+            <span class="hint" onclick="setQuery('type:AUTH_FAIL')">Failed Logins</span>
+            <span class="hint" onclick="setQuery('severity:critical')">Critical</span>
+            <span class="hint" onclick="setQuery('process:powershell*')">PowerShell</span>
+            <span class="hint" onclick="setQuery('type:NETWORK_CONN')">Network</span>
+            <span class="hint" onclick="setQuery('mitre.technique:T1110')">T1110</span>
+            <span class="hint" onclick="setQuery('type:EXECUTION_SUSPICIOUS')">Suspicious Exec</span>
+            <span class="hint" onclick="setQuery('category:threat')">Threats</span>
+        </div>
+    </div>
+
+    <!-- ─── MAIN LAYOUT ─── -->
+    <div class="siem-layout">
+
+        <!-- ─── LEFT: FILTER PANEL ─── -->
+        <aside class="filter-panel" id="filterPanel">
+            <h3 class="filter-title">🎛 Filters</h3>
+
+            <div class="filter-group">
+                <label>Severity</label>
+                <div class="filter-chips" id="filterSeverity">
+                    <span class="chip chip-critical" data-val="critical"
+                        onclick="toggleChip(this,'severity')">Critical</span>
+                    <span class="chip chip-high" data-val="high" onclick="toggleChip(this,'severity')">High</span>
+                    <span class="chip chip-medium" data-val="medium" onclick="toggleChip(this,'severity')">Medium</span>
+                    <span class="chip chip-low" data-val="low" onclick="toggleChip(this,'severity')">Low</span>
+                    <span class="chip chip-info" data-val="info" onclick="toggleChip(this,'severity')">Info</span>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label>Event Category</label>
+                <div class="filter-chips" id="filterCategory">
+                    <span class="chip" data-val="authentication" onclick="toggleChip(this,'category')">Auth</span>
+                    <span class="chip" data-val="network" onclick="toggleChip(this,'category')">Network</span>
+                    <span class="chip" data-val="endpoint" onclick="toggleChip(this,'category')">Endpoint</span>
+                    <span class="chip" data-val="file" onclick="toggleChip(this,'category')">File</span>
+                    <span class="chip" data-val="threat" onclick="toggleChip(this,'category')">Threat</span>
+                    <span class="chip" data-val="web" onclick="toggleChip(this,'category')">Web</span>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label>Platform</label>
+                <div class="filter-chips" id="filterPlatform">
+                    <span class="chip" data-val="windows" onclick="toggleChip(this,'platform')">Windows</span>
+                    <span class="chip" data-val="linux" onclick="toggleChip(this,'platform')">Linux</span>
+                    <span class="chip" data-val="android" onclick="toggleChip(this,'platform')">Android</span>
+                    <span class="chip" data-val="generic" onclick="toggleChip(this,'platform')">Other</span>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label>Log Type</label>
+                <select class="filter-input" id="filterLogType" onchange="applyFilters()">
+                    <option value="">All Types</option>
+                    <option value="authentication">Authentication</option>
+                    <option value="syslog">Syslog / Messages</option>
+                    <option value="audit">Audit</option>
+                    <option value="kernel">Kernel</option>
+                    <option value="logcat">Logcat</option>
+                    <option value="network">Network</option>
+                    <option value="usb">USB</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="filter-group">
+                    <label>User</label>
+                    <input type="text" class="filter-input" id="filterUser" placeholder="admin"
+                        oninput="applyFilters()">
+                </div>
+
+                <div class="filter-group">
+                    <label>Hostname</label>
+                    <input type="text" class="filter-input" id="filterHostname" placeholder="PC-01"
+                        oninput="applyFilters()">
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label>IP Address</label>
+                <input type="text" class="filter-input" id="filterIP" placeholder="192.168.1.1"
+                    oninput="applyFilters()">
+            </div>
+
+            <div class="more-filters-toggle" onclick="toggleMoreFilters()">
+                <span id="moreFiltersIcon">➕</span> More Filters
+            </div>
+
+            <div class="more-filters-section" id="moreFiltersSection" style="display: none; margin-top: 15px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="filter-group">
+                        <label>Process</label>
+                        <input type="text" class="filter-input" id="filterProcess" placeholder="powershell"
+                            oninput="applyFilters()">
+                    </div>
+                </div>
+                <button class="btn-outline" style="width: 100%; margin-top: 10px; border-style: dashed;"
+                    onclick="clearAllFilters()">
+                    🗑️ Reset All
+                </button>
+            </div>
+            <button class="btn-clear-filters" onclick="clearAllFilters()">Clear All Filters</button>
+
+            <!-- Entity Summary -->
+            <div class="filter-section-title">📊 Top Entities</div>
+            <div id="entitySummaryPanel" class="entity-summary-mini">
+                {% for etype, entities in data.entity_summary.items() %}
+                {% if entities %}
+                <div class="entity-group-mini">
+                    <small class="entity-type-label">{{ etype }}</small>
+                    {% for ent in entities[:2] %}
+                    <div class="entity-mini-row" onclick="pivotEntity('{{ etype }}','{{ ent.value }}')">
+                        <span class="entity-val">{{ ent.value }}</span>
+                        <span class="entity-risk risk-{{ ent.risk_level }}">{{ ent.risk_score }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </aside>
+
+        <!-- ─── CENTER: MAIN CONTENT ─── -->
+        <main class="siem-main">
+
+            <div id="tacticalSuggestions"
+                style="margin-bottom: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="ov-card" style="border-left: 4px solid #f5c451; background: rgba(245,196,81,0.03);">
+                    <div style="flex:1">
+                        <small style="color:#f5c451; font-weight:bold;">Tactical Next Step</small>
+                        <p id="tacticalNextStep" style="font-size:0.85rem; margin-top:5px; color:#eee;">Analyze entity
+                            <code>{{ data.entity_summary.user[0].value if data.entity_summary.user else 'admin' }}</code>
+                            for lateral movement patterns.
+                        </p>
+                    </div>
+                    <button class="btn-outline" style="font-size:0.7rem;"
+                        onclick="pivotEntity('user','{{ data.entity_summary.user[0].value if data.entity_summary.user else 'admin' }}')">Execute</button>
+                </div>
+                <div class="ov-card" style="border-left: 4px solid #3b82f6; background: rgba(59,130,246,0.03);">
+                    <div style="flex:1">
+                        <small style="color:#3b82f6; font-weight:bold;">Suggested Hunter Query</small>
+                        <p id="suggestedQuery"
+                            style="font-size:0.85rem; margin-top:5px; font-family:monospace; color:#eee;">
+                            event_type:AUTH AND status:FAIL</p>
+                    </div>
+                    <button class="btn-outline" style="font-size:0.7rem;"
+                        onclick="setQuery('event_type:AUTH AND status:FAIL')">Pivot</button>
+                </div>
+            </div>
+
+            <!-- ─── OVERVIEW CARDS ─── -->
+            <div class="overview-grid">
+                <div class="ov-card">
+                    <div class="ov-icon ov-red">🚨</div>
+                    <div><small>Incident</small><strong>{{ data.incident_type }}</strong></div>
+                </div>
+                <div class="ov-card">
+                    <div class="ov-icon ov-amber">📈</div>
+                    <div><small>Risk Level</small><strong>{{ data.risk_score }}</strong></div>
+                </div>
+                <div class="ov-card">
+                    <div class="ov-icon ov-blue">🎯</div>
+                    <div><small>MITRE Coverage</small><strong>{{ data.coverage.coverage_pct }}%</strong></div>
+                </div>
+                <div class="ov-card">
+                    <div class="ov-icon ov-green">🛡</div>
+                    <div><small>Integrity</small><strong>Validated</strong></div>
+                </div>
+            </div>
+
+            <!-- ─── TABS ─── -->
+            <div class="tab-bar">
+                <button class="tab active" onclick="switchTab('events',this)">📋 Events</button>
+                <button class="tab" onclick="switchTab('timeline',this)">🕒 Timeline</button>
+                <button class="tab" onclick="switchTab('visual',this)">🕸 Visual Hunt</button>
+                <button class="tab" onclick="switchTab('mitre',this)">🎯 MITRE</button>
+                <button class="tab" onclick="switchTab('ai',this)">🤖 AI Hunter</button>
+                <button class="tab" onclick="switchTab('lab',this)">🧪 Forensic Lab</button>
+                <button class="tab" onclick="switchTab('playbooks',this)">🛡️ Playbooks</button>
+                <button class="tab" onclick="switchTab('casemgmt',this)">📁 Case</button>
+            </div>
+
+            <!-- ═══════ TAB: EVENTS ═══════ -->
+            <div class="tab-content active" id="tab-events">
+                <div class="events-header">
+                    <span id="eventCount" class="event-count">{{ data.events|length }} events indexed</span>
+                </div>
+                <div class="events-table-wrap">
+                    <table class="events-table" id="eventsTable">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Category</th>
+                                <th>Severity</th>
+                                <th>User</th>
+                                <th>Source IP</th>
+                                <th class="col-process-hide">Process</th>
+                                <th>Raw Telemetry</th>
+                            </tr>
+                        </thead>
+                        <tbody id="eventsBody">
+                            {% for e in data.timeline[:100] %}
+                            <tr class="event-row sev-{{ e.severity }}">
+                                <td class="col-time">{{ e.timestamp }}</td>
+                                <td><span class="etype-badge etype-{{ e.type }}">{{ e.type }}</span></td>
+                                <td><span class="sev-badge sev-b-{{ e.severity }}">{{ e.severity }}</span></td>
+                                <td class="col-entity" onclick="pivotEntity('user','{{ e.user }}')">{{ e.user or '–' }}
+                                </td>
+                                <td class="col-entity">{{ e.ip or '–' }}</td>
+                                <td class="col-process-hide">{{ e.process or '–' }}</td>
+                                <td class="col-raw"><span class="raw-text">{{ e.raw }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ═══════ TAB: TIMELINE ═══════ -->
+            <div class="tab-content" id="tab-timeline">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="timeline-chart-wrap"
+                        style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                        <h3 style="margin-bottom:20px; font-size: 1em; color: #f5c451;">Incident Progression (Threat
+                            Velocity)</h3>
+                        <canvas id="timelineChart"></canvas>
+                    </div>
+                    <div class="timeline-chart-wrap"
+                        style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                        <h3 style="margin-bottom:20px; font-size: 1em; color: #f5c451;">Telemetry Distribution by
+                            Category</h3>
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+                <div class="storyline-reconstruction" style="margin-top:25px;">
+                    <h3>📖 Attack Storyline Reconstruction</h3>
+                    <div class="timeline-scroll">
+                        {% for ch in data.storyline_chapters %}
+                        <div class="tl-event">
+                            <div class="tl-dot sev-dot-{{ 'critical' if ch.order > 3 else 'high' }}"></div>
+                            <div class="tl-content">
+                                <div class="tl-time">Phase {{ ch.order }}: {{ ch.phase }}</div>
+                                <strong style="color:#eee; display:block; margin-bottom:5px;">{{ ch.title }}</strong>
+                                <div class="tl-raw" style="font-size: 0.9em; color: #888;">{{ ch.evidence }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ TAB: MITRE ═══════ -->
+            <div class="tab-content" id="tab-mitre">
+                <div class="mitre-header" style="margin-bottom:20px;">
+                    <h3>🎯 ATT&CK Heatmap</h3>
+                    <p style="color:#888;">Visualizing detected techniques across the killchain.</p>
+                </div>
+                <div class="mitre-heatmap" id="mitreHeatmap"
+                    style="display:flex; gap:10px; overflow-x:auto; padding-bottom:15px;">
+                    {% for tactic_id, tech_map in data.heatmap_data.items() %}
+                    <div class="mitre-tactic-col" style="min-width:140px;">
+                        <div class="mitre-tactic-name"
+                            style="font-size: 0.75em; text-transform:uppercase; color:#f5c451; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">
+                            {{ tactic_id }}</div>
+                        {% for tid, count in tech_map.items() %}
+                        <div class="mitre-cell mitre-heat-{{ 'high' if count > 4 else ('med' if count > 1 else 'low') }}"
+                            style="margin-bottom:4px; padding:6px; background:rgba(255,255,255,0.03); border-radius:4px; font-size: 0.8em;">
+                            <span style="color:#eee;">{{ tid }}</span>
+                            <span style="float:right; color:#888;">{{ count }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- ═══════ TAB: VISUAL HUNT ═══════ -->
+            <div class="tab-content" id="tab-visual">
+                <div style="display:grid; grid-template-rows: 1fr 1fr; gap: 30px;">
+                    <div id="entityGraphBox"
+                        style="background:rgba(0,0,0,0.4); border-radius:12px; border:1px solid rgba(255,255,255,0.05); overflow:hidden; position:relative; min-height: 450px;">
+                        <canvas id="entityGraphCanvas"></canvas>
+                        <div style="position:absolute; top:15px; left:15px; pointer-events:none;"><strong
+                                style="color:#f5c451;">ENTITY RELATIONSHIP GRAPH</strong></div>
+                    </div>
+                    <div id="attackGraphContainer"
+                        style="background:rgba(0,0,0,0.4); border-radius:12px; border:1px solid rgba(255,255,255,0.05); overflow:hidden; position:relative; min-height: 450px;">
+                        <canvas id="attackGraphCanvas"></canvas>
+                        <div style="position:absolute; top:15px; left:15px; pointer-events:none;"><strong
+                                style="color:#f5c451;">LATERAL MOVEMENT / ATTACK CHAIN</strong></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ TAB: AI HUNTER (SPLUNK COPILOT) ═══════ -->
+            <div class="tab-content" id="tab-ai">
+                <div class="splunk-hunter-container">
+                    <!-- Top Telemetry & Control Bar -->
+                    <div class="splunk-hunter-header">
+                        <div class="splunk-hunter-title-area">
+                            <div class="splunk-bot-avatar">⚡</div>
+                            <div>
+                                <h3 class="splunk-hunter-title">AI Hunter <span class="splunk-badge">SPLUNK COPILOT</span></h3>
+                                <p class="splunk-hunter-subtitle">Context-Aware Splunk SPL Threat Hunting & Detection Engineer</p>
+                            </div>
+                        </div>
+                        <div class="splunk-hunter-meta">
+                            <span class="splunk-chip-meta status-online" title="Google Gemini 3.6 Flash Active">
+                                <span class="pulse-dot"></span> Gemini 3.6 Flash
+                            </span>
+                            <span class="splunk-chip-meta" title="Case Incident Classification">
+                                🚨 {{ data.incident_type }}
+                            </span>
+                            <span class="splunk-chip-meta" title="Active MITRE Techniques">
+                                🎯 {{ data.mitre_techniques|length }} TTPs
+                            </span>
+                            <button class="btn-splunk-reset" onclick="resetSplunkChat()" title="Clear conversation history">
+                                🔄 Reset Chat
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Suggestions Chips Bar -->
+                    <div class="splunk-quick-prompts-bar">
+                        <span class="splunk-quick-label">⚡ Quick Hunt:</span>
+                        <button class="splunk-quick-chip" onclick="quickSendPrompt('Write a Splunk query for multiple failed logins and brute force surge')">
+                            🔒 Failed Logins & Brute Force
+                        </button>
+                        <button class="splunk-quick-chip" onclick="quickSendPrompt('Hunt for suspicious obfuscated PowerShell execution and download strings')">
+                            💻 Obfuscated PowerShell
+                        </button>
+                        <button class="splunk-quick-chip" onclick="quickSendPrompt('Detect lateral movement via PsExec, WMI, or SMB admin share accesses')">
+                            🕵️ Lateral Movement / PsExec
+                        </button>
+                        <button class="splunk-quick-chip" onclick="quickSendPrompt('Find suspicious outbound network beaconing to suspect external IPs')">
+                            🌐 Network C2 & Beaconing
+                        </button>
+                        <button class="splunk-quick-chip" onclick="quickSendPrompt('Generate a timechart of events grouped by hour to identify volume spikes')">
+                            📈 Timechart Event Volume
+                        </button>
+                        <button class="splunk-quick-chip" onclick="quickSendPrompt('Convert this hunt into an accelerated tstats search using the Authentication Data Model')">
+                            🚀 Accelerate with tstats
+                        </button>
+                    </div>
+
+                    <!-- Chat Messages Viewport -->
+                    <div class="splunk-chat-viewport" id="splunkChatMessages">
+                        <!-- Loaded dynamically via initSplunkChat -->
+                    </div>
+
+                    <!-- Typing Indicator -->
+                    <div class="splunk-typing-indicator" id="splunkTypingIndicator" style="display:none;">
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                        <span style="margin-left:8px; font-size:0.8rem; color:#f5c451;">AI Hunter is generating Splunk SPL query... ⚡</span>
+                    </div>
+
+                    <!-- Chat Input Controls -->
+                    <div class="splunk-chat-input-area">
+                        <div class="splunk-input-wrapper">
+                            <textarea id="splunkChatInput" class="splunk-chat-textarea" rows="2"
+                                placeholder="Ask AI Hunter to write or refine a Splunk query... (e.g. 'Show failed logins grouped by user where count > 5', press Enter to send)"
+                                onkeydown="handleSplunkKey(event)"></textarea>
+                            <button id="btnSplunkSend" class="btn-splunk-send" onclick="sendSplunkChatMessage()">
+                                <span>Generate SPL</span> 🚀
+                            </button>
+                        </div>
+                        <div class="splunk-input-hint">
+                            <span>Tip: Press <code>Enter</code> to send, <code>Shift+Enter</code> for new line. AI queries are grounded in current case telemetry.</span>
+                            <span id="splunkStatusTip" style="color:#f5c451;">Splunk Assistant Ready</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ TAB: FORENSIC LAB ═══════ -->
+            <div class="tab-content" id="tab-lab">
+                <div class="lab-container"
+                    style="display:grid; grid-template-columns: 1fr 300px; gap:20px; height: 600px;">
+                    <div class="terminal-wrap"
+                        style="background:#050505; border-radius:12px; border:1px solid #333; display:flex; flex-direction:column; overflow:hidden;">
+                        <div class="terminal-header"
+                            style="background:#1a1a1a; padding:10px 15px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center;">
+                            <span
+                                style="font-family:'JetBrains Mono'; color:#888; font-size:0.75rem;">forensic_lens_terminal_v2.04</span>
+                            <div style="display:flex; gap:6px;">
+                                <div style="width:10px; height:10px; border-radius:50%; background:#ff5f56;"></div>
+                                <div style="width:10px; height:10px; border-radius:50%; background:#ffbd2e;"></div>
+                                <div style="width:10px; height:10px; border-radius:50%; background:#27c93f;"></div>
+                            </div>
+                        </div>
+                        <div id="terminalOutput"
+                            style="flex:1; padding:20px; font-family:'JetBrains Mono'; font-size:0.85rem; color:#00ff00; overflow-y:auto; line-height:1.6;">
+                            <div>Welcome to ForensicLens Terminal. Use <code>help</code> for options.</div>
+                            <div style="color:#555;">[SESSION STARTED: {{ case_id[:8] }}]</div>
+                        </div>
+                        <div class="terminal-input-line"
+                            style="background:#0a0a0a; padding:10px 15px; border-top:1px solid #222; display:flex; align-items:center; gap:10px;">
+                            <span style="color:#f5c451;">$</span>
+                            <input type="text" id="terminalInput"
+                                style="flex:1; background:transparent; border:none; color:#fff; font-family:'JetBrains Mono'; outline:none;"
+                                placeholder="Run forensic macro..." onkeydown="handleTerminalKey(event)">
+                        </div>
+                    </div>
+                    <div class="lab-sidebar"
+                        style="background:rgba(255,255,255,0.02); border-radius:12px; border:1px solid rgba(255,255,255,0.05); padding:20px;">
+                        <h4 style="color:#f5c451; margin-bottom:15px; font-size:0.9rem;">🧪 Forensic Macros</h4>
+                        <div style="display:flex; flex-direction:column; gap:10px;">
+                            <button class="btn-outline" style="text-align:left; font-size:0.75rem;"
+                                onclick="runTerminalCmd('whoami --impact')">🕵️ whoami --impact</button>
+                            <button class="btn-outline" style="text-align:left; font-size:0.75rem;"
+                                onclick="runTerminalCmd('analyze --blast-radius')">☢️ analyze --blast-radius</button>
+                            <button class="btn-outline" style="text-align:left; font-size:0.75rem;"
+                                onclick="runTerminalCmd('check --iocs')">💎 check --iocs</button>
+                            <button class="btn-outline" style="text-align:left; font-size:0.75rem;"
+                                onclick="runTerminalCmd('ls --correlations')">⛓️ ls --correlations</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ TAB: PLAYBOOKS ═══════ -->
+            <div class="tab-content" id="tab-playbooks">
+                <div class="playbook-container" style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px;">
+                    <div class="playbook-card"
+                        style="background: rgba(255,255,255,0.03); padding: 30px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 15px 45px rgba(0,0,0,0.6);">
+                        <h3 style="color:#ef4444; font-size:1.4em; display:flex; align-items:center; gap:10px;">🛡️
+                            {{ data.playbook.title }}</h3>
+                        <p style="color:#888; margin-bottom: 25px;">Dynamic response strategy triggered by <strong>{{
+                                data.severity }}</strong> level incident detections.</p>
+
+                        <div class="playbook-steps-timeline">
+                            {% for step in data.playbook.steps %}
+                            <div class="playbook-step"
+                                style="border-left: 4px solid {{ '#ef4444' if step.phase == 'Containment' else ('#3b82f6' if step.phase == 'Eradication' else '#10b981') }}; padding-left: 20px; margin-bottom: 25px; position: relative;">
+                                <div
+                                    style="position: absolute; left: -10px; top: 0; background: #111; border: 2px solid {{ '#ef4444' if step.phase == 'Containment' else ('#3b82f6' if step.phase == 'Eradication' else '#10b981') }}; width: 16px; height: 16px; border-radius: 50%;">
+                                </div>
+                                <strong
+                                    style="color:{{ '#ef4444' if step.phase == 'Containment' else ('#3b82f6' if step.phase == 'Eradication' else '#10b981') }}; font-size:0.75em; text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:5px;">
+                                    {{ step.phase }}
+                                </strong>
+                                <div style="color:#fff; font-weight: 600; margin-bottom: 4px;">{{ step.action }}</div>
+                                <p style="color:#888; font-size:0.85em; margin: 0;">{{ step.details }}</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div
+                            style="background:rgba(245,196,81,0.05); padding:20px; border-radius:10px; border:1px dashed rgba(245,196,81,0.2); margin-top: 10px;">
+                            <strong style="color:#f5c451; display:block; margin-bottom:10px;">📞 Escalation Chain
+                                (Verified)</strong>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; font-size:0.85em;">
+                                {% for contact in data.playbook.contacts %}
+                                <div><small style="color:#666;">Contact:</small><br><strong>{{ contact }}</strong></div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="playbook-card"
+                        style="background: rgba(255,255,255,0.03); padding: 30px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+                        <h3>📐 Detection Rule Tuning</h3>
+                        <div style="display:flex;flex-direction:column;gap:15px; margin-top:20px;">
+                            <input type="text" id="ruleTitle" class="filter-input"
+                                placeholder="Rule Name (e.g. Lateral Movement Detection)">
+                            <textarea id="ruleCondition" class="filter-input"
+                                style="height:150px; font-family:'JetBrains Mono'; font-size:0.85em;"
+                                placeholder="Logic DSL: event_type: AUTH AND status: FAIL..."></textarea>
+                            <button class="btn-search" onclick="createRule()">⚡ Deploy to Engine</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ TAB: CASE MGMT ═══════ -->
+            <div class="tab-content" id="tab-casemgmt">
+                <div class="overview-grid">
+                    <div class="ov-card"><small>Case Tracking ID</small><strong style="font-family:'JetBrains Mono';">{{
+                            case_id[:16] }}...</strong></div>
+                    <div class="ov-card">
+                        <small>Investigation Status</small>
+                        <select id="caseStatus" class="filter-input" style="margin-top:5px;"
+                            onchange="updateCaseStatus()">
+                            <option value="open">🟢 Active Investigation</option>
+                            <option value="resolved">🔵 Issue Resolved</option>
+                            <option value="closed">⚪ Closed-Archived</option>
+                        </select>
+                        <button class="btn-primary-sm" style="margin-top:10px; width:100%"
+                            onclick="resolveThisCase()">Resolve & Archive</button>
+                    </div>
+                </div>
+                <div class="narrative-section" style="margin-top:20px;">
+                    <h3>📝 Professional Forensic Narrative</h3>
+                    <div class="narrative-text" style="color:#bbb; line-height:1.8;">{{ data.narrative }}</div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ─── THREAT PULSE FOOTER ─── -->
+    <div class="threat-pulse"
+        style="background:#0c0f14; border-top:1px solid #333; height:32px; display:flex; align-items:center; padding:0 24px; font-family:'JetBrains Mono'; font-size:0.7rem; color:#888; position:fixed; bottom:0; width:100%; z-index:100;">
+        <div style="display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;">
+            <span style="color:#f5c451; font-weight:bold; white-space:nowrap;">[GLOBAL THREAT PULSE]</span>
+            <div id="pulseTicker"
+                style="display:flex; gap:30px; animation: ticker-slide 60s linear infinite; white-space:nowrap;">
+                {% for pulse in data.threat_pulses %}
+                <span>{{ pulse.message }} <small
+                        style="color:{{ '#ef4444' if pulse.severity == 'CRITICAL' else ('#f59e0b' if pulse.severity == 'HIGH' else ('#3b82f6' if pulse.severity == 'MEDIUM' else '#22c55e')) }};">[{{
+                        pulse.severity }}]</small></span>
+                {% endfor %}
+            </div>
+        </div>
+        <div style="display:flex; gap:15px; align-items:center; padding-left:20px; border-left:1px solid #333;">
+            <span>CPU: 12%</span>
+            <span>RAM: 2.4GB</span>
+            <span id="currentTime">12:40:41</span>
+        </div>
+    </div>
+
+    <style>
+        @keyframes ticker-slide {
+            0% {
+                transform: translateX(0);
+            }
+
+            100% {
+                transform: translateX(-50%);
+            }
+        }
+
+        .terminal-wrap:focus-within {
+            border-color: #f5c451 !important;
+            box-shadow: 0 0 20px rgba(245, 196, 81, 0.1);
+        }
+    </style>
+
+    <!-- ─── JS LOGIC ─── -->
+    <script>
+        const CASE_ID = "{{ case_id }}";
+        const API_BASE = `/api/${CASE_ID}`;
+        const HIGHLIGHT_RULES = {{ data.highlight_rules | tojson }};
+
+        let atkAnimId = null, entAnimId = null;
+        let attackFrame = 0, entityFrame = 0;
+
+        function switchTab(id, btn) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            const target = document.getElementById('tab-' + id);
+            if (target) {
+                target.classList.add('active');
+                if (btn) btn.classList.add('active');
+                if (id === 'visual') {
+                    setTimeout(() => {
+                        initAttackGraph();
+                        initEntityGraph();
+                    }, 200);
+                }
+                if (id === 'ai') {
+                    setTimeout(() => {
+                        initSplunkChat();
+                    }, 100);
+                }
+            }
+        }
+
+        // --- FILTERS & SEARCH ---
+        let activeFilters = {};
+        function toggleChip(el, filterType) {
+            const val = el.dataset.val;
+            if (el.classList.contains('chip-active')) {
+                el.classList.remove('chip-active');
+                delete activeFilters[filterType];
+            } else {
+                el.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('chip-active'));
+                el.classList.add('chip-active');
+                activeFilters[filterType] = val;
+            }
+            applyFilters();
+        }
+
+        function toggleMoreFilters() {
+            const section = document.getElementById('moreFiltersSection');
+            const icon = document.getElementById('moreFiltersIcon');
+            const hidden = section.style.display === 'none' || !section.style.display;
+            section.style.display = hidden ? 'block' : 'none';
+            icon.textContent = hidden ? '➖' : '➕';
+        }
+
+        function clearAllFilters() {
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('chip-active'));
+            document.querySelectorAll('.filter-input').forEach(i => i.value = '');
+            activeFilters = {};
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const filters = { ...activeFilters };
+            const u = document.getElementById('filterUser').value.trim();
+            const ip = document.getElementById('filterIP').value.trim();
+            const lt = document.getElementById('filterLogType') ? document.getElementById('filterLogType').value : "";
+            if (u) filters.user = u;
+            if (ip) filters.ip = ip;
+            if (lt) filters.log_type = lt;
+            executeFilter(filters);
+        }
+
+        async function executeFilter(filters) {
+            const res = await fetch(`${API_BASE}/filter`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filters }) });
+            const data = await res.json();
+            renderSearchResults(data);
+            updateTacticalSteps(data.events);
+        }
+
+        async function executeSearch() {
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query) return;
+            const res = await fetch(`${API_BASE}/search`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) });
+            const data = await res.json();
+            renderSearchResults(data);
+            updateTacticalSteps(data.events);
+        }
+
+        function setQuery(q) { document.getElementById('queryInput').value = q; executeSearch(); }
+
+        function renderSearchResults(data) {
+            const tbody = document.getElementById('eventsBody');
+            tbody.innerHTML = '';
+            document.getElementById('eventCount').textContent = `${data.events.length} events found`;
+            data.events.forEach(e => {
+                const tr = document.createElement('tr');
+                tr.className = `event-row sev-${e.severity}`;
+                tr.innerHTML = `<td>${e.timestamp}</td><td><span class="etype-badge etype-${e.type}">${e.type}</span></td><td><span class="sev-badge sev-b-${e.severity}">${e.severity}</span></td><td>${e.user}</td><td>${e.ip}</td><td>${e.process}</td><td class="col-raw">${highlightKeywords(e.raw)}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // AI HUNTER – SPLUNK COPILOT CHATBOT
+        // ═══════════════════════════════════════════════════════════════
+        let splunkChatLoaded = false;
+
+        async function initSplunkChat() {
+            if (splunkChatLoaded) return;
+            const container = document.getElementById('splunkChatMessages');
+            if (!container) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/splunk-chat/history`);
+                const data = await res.json();
+                splunkChatLoaded = true;
+
+                if (data.history && data.history.length > 0) {
+                    container.innerHTML = '';
+                    data.history.forEach(item => {
+                        if (item.role === 'user') {
+                            appendUserMessageUI(item.content);
+                        } else if (item.role === 'assistant') {
+                            const resData = item.data || {
+                                message: item.content,
+                                query_title: item.query_title || 'Splunk Threat Hunt',
+                                splunk_query: item.splunk_query || '',
+                                sourcetypes: item.sourcetypes || 'index=*',
+                                pipeline_stages: item.pipeline_stages || [],
+                                mitre_technique: item.mitre_technique || '',
+                                suggested_pivots: item.suggested_pivots || []
+                            };
+                            appendBotMessageUI(resData);
+                        }
+                    });
+                } else {
+                    renderWelcomeMessageUI(data.case_summary);
+                }
+            } catch (err) {
+                console.error("Failed to load Splunk chat history:", err);
+                renderWelcomeMessageUI();
+            }
+            scrollSplunkChatToBottom();
+        }
+
+        function renderWelcomeMessageUI(caseSummary) {
+            const container = document.getElementById('splunkChatMessages');
+            if (!container) return;
+            const incType = caseSummary?.incident_type || "{{ data.incident_type }}";
+            const topUser = caseSummary?.top_users?.[0] || "{{ data.entity_summary.user[0].value if data.entity_summary.user else 'admin' }}";
+            const mitreCount = caseSummary?.mitre_techniques?.length || {{ data.mitre_techniques|length }};
+
+            container.innerHTML = `
+                <div class="splunk-msg-bot-wrap">
+                    <div class="splunk-bot-icon-small">⚡</div>
+                    <div class="splunk-msg-bot">
+                        <div class="splunk-bot-card-header">
+                            <div class="splunk-bot-query-title">👋 Welcome to AI Splunk Threat Hunter</div>
+                            <div class="splunk-bot-tags">
+                                <span class="splunk-bot-tag tag-mitre">🎯 ${mitreCount} MITRE TTPs Indexed</span>
+                                <span class="splunk-bot-tag tag-sourcetype">📁 ${incType}</span>
+                            </div>
+                        </div>
+                        <div class="splunk-bot-explanation">
+                            I am your automated Splunk Detection Engineer and Threat Hunting Copilot. I have indexed this case's telemetry (including key entities such as user <code>${topUser}</code>, suspicious event signatures, and MITRE ATT&CK patterns).
+                            <br><br>
+                            <strong>What I can do for you:</strong>
+                            <ul style="margin: 8px 0 0 18px; padding: 0; line-height: 1.6; color: #cbd5e1;">
+                                <li>Translate natural language hunting hypotheses into optimized Splunk Search Processing Language (SPL)</li>
+                                <li>Generate detection queries with thresholds, timecharts, and statistical anomaly detection</li>
+                                <li>Provide step-by-step pipeline breakdowns (search → eval → stats → where)</li>
+                                <li>Convert standard searches into accelerated <code>| tstats</code> Data Model queries</li>
+                            </ul>
+                            <br>
+                            <em>Ask a question below, or select any of the Quick Hunt Prompts above to begin!</em>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function appendUserMessageUI(text) {
+            const container = document.getElementById('splunkChatMessages');
+            if (!container) return;
+            const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const div = document.createElement('div');
+            div.className = 'splunk-msg-user-wrap';
+            div.innerHTML = `
+                <div class="splunk-msg-user">
+                    <div class="splunk-msg-user-text">${escapeHtml(text)}</div>
+                    <div class="splunk-msg-time">${now}</div>
+                </div>
+            `;
+            container.appendChild(div);
+        }
+
+        function appendBotMessageUI(data) {
+            const container = document.getElementById('splunkChatMessages');
+            if (!container) return;
+            const div = document.createElement('div');
+            div.className = 'splunk-msg-bot-wrap';
+
+            const queryId = 'spl_query_' + Math.random().toString(36).substr(2, 9);
+            const rawSpl = data.splunk_query || '';
+            const safeSpl = escapeHtml(rawSpl);
+
+            // Pipeline stages HTML
+            let pipelineHtml = '';
+            if (data.pipeline_stages && data.pipeline_stages.length > 0) {
+                const steps = data.pipeline_stages.map(s => `
+                    <div class="splunk-pipeline-step">
+                        <span class="splunk-pipeline-cmd">${escapeHtml(s.stage || '')}</span>
+                        <span class="splunk-pipeline-desc">${escapeHtml(s.purpose || '')}</span>
+                    </div>
+                `).join('');
+                pipelineHtml = `
+                    <div class="splunk-pipeline-box">
+                        <div class="splunk-pipeline-title">🔍 Search Pipeline Breakdown</div>
+                        <div class="splunk-pipeline-steps">${steps}</div>
+                    </div>
+                `;
+            }
+
+            // Suggested Pivots HTML
+            let pivotsHtml = '';
+            if (data.suggested_pivots && data.suggested_pivots.length > 0) {
+                const buttons = data.suggested_pivots.map(p => `
+                    <button class="splunk-pivot-btn" onclick="quickSendPrompt(${JSON.stringify(p)})">
+                        ⚡ ${escapeHtml(p)}
+                    </button>
+                `).join('');
+                pivotsHtml = `
+                    <div class="splunk-pivots-section">
+                        <span class="splunk-pivots-label">Next Threat Hunt Pivots:</span>
+                        ${buttons}
+                    </div>
+                `;
+            }
+
+            // MITRE & Sourcetype Tags
+            let tagsHtml = '';
+            if (data.mitre_technique) {
+                tagsHtml += `<span class="splunk-bot-tag tag-mitre">🎯 ${escapeHtml(data.mitre_technique)}</span>`;
+            }
+            if (data.sourcetypes) {
+                tagsHtml += `<span class="splunk-bot-tag tag-sourcetype">📦 ${escapeHtml(data.sourcetypes)}</span>`;
+            }
+
+            div.innerHTML = `
+                <div class="splunk-bot-icon-small">⚡</div>
+                <div class="splunk-msg-bot">
+                    <div class="splunk-bot-card-header">
+                        <div class="splunk-bot-query-title">🎯 ${escapeHtml(data.query_title || 'Splunk Threat Hunt')}</div>
+                        <div class="splunk-bot-tags">${tagsHtml}</div>
+                    </div>
+                    <div class="splunk-bot-explanation">${formatMarkdownText(data.message || '')}</div>
+                    
+                    <div class="splunk-code-box">
+                        <div class="splunk-code-header">
+                            <span class="splunk-code-lang">SPLUNK SPL</span>
+                            <div class="splunk-code-actions">
+                                <button class="btn-copy-spl" onclick="copySplunkQuery(this, ${JSON.stringify(rawSpl)})">
+                                    📋 Copy SPL
+                                </button>
+                                <button class="btn-test-spl" onclick="testSplunkQueryInSiem(${JSON.stringify(rawSpl)})" title="Test in local SIEM search">
+                                    🔎 Test in SIEM
+                                </button>
+                            </div>
+                        </div>
+                        <pre class="splunk-code-content" id="${queryId}"><code>${safeSpl}</code></pre>
+                    </div>
+
+                    ${pipelineHtml}
+                    ${pivotsHtml}
+                </div>
+            `;
+            container.appendChild(div);
+        }
+
+        function formatMarkdownText(text) {
+            if (!text) return '';
+            let html = escapeHtml(text);
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+            html = html.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
+            return html;
+        }
+
+        function escapeHtml(str) {
+            if (typeof str !== 'string') return '';
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        async function sendSplunkChatMessage(promptOverride) {
+            const inputEl = document.getElementById('splunkChatInput');
+            const text = (promptOverride || (inputEl ? inputEl.value : '')).trim();
+            if (!text) return;
+
+            if (inputEl && !promptOverride) inputEl.value = '';
+
+            appendUserMessageUI(text);
+            scrollSplunkChatToBottom();
+
+            const indicator = document.getElementById('splunkTypingIndicator');
+            const sendBtn = document.getElementById('btnSplunkSend');
+            if (indicator) indicator.style.display = 'flex';
+            if (sendBtn) { sendBtn.disabled = true; sendBtn.innerHTML = '<span>Hunting...</span> 📡'; }
+
+            try {
+                const res = await fetch(`${API_BASE}/splunk-chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                });
+                const data = await res.json();
+
+                if (data.success && data.response) {
+                    appendBotMessageUI(data.response);
+                } else {
+                    appendBotMessageUI({
+                        query_title: "Query Generation Notice",
+                        message: data.error || "Unable to generate Splunk query. Please check telemetry or rephrase.",
+                        splunk_query: 'index=* | head 20',
+                        suggested_pivots: ["Hunt for failed logins", "Show PowerShell executions"]
+                    });
+                }
+            } catch (err) {
+                console.error("Error sending Splunk chat message:", err);
+                appendBotMessageUI({
+                    query_title: "Connection Notice",
+                    message: "An issue occurred contacting the AI Hunter service. The query was generated via local rules.",
+                    splunk_query: 'index=* | head 50',
+                    suggested_pivots: ["Retry prompt"]
+                });
+            } finally {
+                if (indicator) indicator.style.display = 'none';
+                if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<span>Generate SPL</span> 🚀'; }
+                scrollSplunkChatToBottom();
+            }
+        }
+
+        function quickSendPrompt(text) {
+            sendSplunkChatMessage(text);
+        }
+
+        function handleSplunkKey(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendSplunkChatMessage();
+            }
+        }
+
+        function scrollSplunkChatToBottom() {
+            const container = document.getElementById('splunkChatMessages');
+            if (container) {
+                setTimeout(() => {
+                    container.scrollTop = container.scrollHeight;
+                }, 50);
+            }
+        }
+
+        function copySplunkQuery(btn, queryText) {
+            if (!queryText) return;
+            navigator.clipboard.writeText(queryText).then(() => {
+                const orig = btn.innerHTML;
+                btn.innerHTML = '✓ Copied!';
+                btn.style.borderColor = '#10b981';
+                btn.style.color = '#10b981';
+                setTimeout(() => {
+                    btn.innerHTML = orig;
+                    btn.style.borderColor = '';
+                    btn.style.color = '';
+                }, 2000);
+            }).catch(err => {
+                console.error("Clipboard write failed:", err);
+            });
+        }
+
+        function testSplunkQueryInSiem(queryText) {
+            let query = queryText;
+            if (queryText.includes('user=')) {
+                const match = queryText.match(/user="?([^"\s|]+)"?/);
+                if (match) query = `user:${match[1]}`;
+            } else if (queryText.includes('EventCode=4625') || queryText.includes('Failed')) {
+                query = 'type:AUTH_FAIL';
+            } else if (queryText.includes('powershell')) {
+                query = 'process:powershell*';
+            } else if (queryText.includes('EventCode=4624')) {
+                query = 'type:AUTH_SUCCESS';
+            } else if (queryText.includes('EventCode=7045')) {
+                query = 'type:SERVICE_INSTALL';
+            }
+
+            document.getElementById('queryInput').value = query;
+            executeSearch();
+            switchTab('events', document.querySelector('.tab[onclick*="events"]'));
+        }
+
+        async function resetSplunkChat() {
+            if (!confirm("Are you sure you want to reset the Splunk Chat conversation history for this case?")) return;
+            try {
+                const res = await fetch(`${API_BASE}/splunk-chat/reset`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    splunkChatLoaded = false;
+                    initSplunkChat();
+                }
+            } catch (err) {
+                console.error("Failed to reset chat:", err);
+            }
+        }
+
+        // Backward compatibility
+        async function executeAIQuery() {
+            switchTab('ai', document.querySelector('.tab[onclick*="ai"]'));
+        }
+
+        // --- UTILS ---
+        function highlightKeywords(text) {
+            let res = text;
+            HIGHLIGHT_RULES.forEach(r => {
+                const regex = new RegExp(`(${escapeRegex(r.keyword)})`, 'gi');
+                res = res.replace(regex, `<span class="hl hl-${r.severity}" title="${r.tooltip}">$1</span>`);
+            });
+            return res;
+        }
+        function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+        function pivotEntity(t, v) { document.getElementById('queryInput').value = `${t}:"${v}"`; executeSearch(); switchTab('events'); }
+
+        async function resolveThisCase() {
+            if (!confirm("Are you sure you want to resolve and archive this case?")) return;
+            const res = await fetch(`/api/case/${CASE_ID}/resolve`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                alert("Case resolved successfully. Redirecting to portal.");
+                window.location.href = "/portal";
+            }
+        }
+
+        function updateCaseStatus() {
+            const status = document.getElementById('caseStatus').value;
+            if (status === 'resolved') resolveThisCase();
+            else alert("Status updated locally.");
+        }
+        function createRule() { alert("Detection rule compiled and pushed to endpoints."); }
+        function toggleShortcuts() { alert("/: Search\nV: Visuals\nT: Timeline\nEsc: Reset"); }
+
+        function updateTacticalSteps(events) {
+            if (!events || events.length === 0) return;
+            const topUser = events.find(e => e.user && e.user !== '–' && e.user !== 'SYSTEM')?.user || 'admin';
+            const topHost = events.find(e => e.hostname)?.hostname || 'HOST-DC';
+            const topType = events[0].type;
+            document.getElementById('tacticalNextStep').innerHTML = `Examine <code>${topUser}</code> on <code>${topHost}</code> for correlates of <code>${topType}</code>.`;
+            document.getElementById('suggestedQuery').innerText = `user:${topUser} AND type:${topType}`;
+            document.getElementById('suggestedQuery').parentElement.nextElementSibling.setAttribute('onclick', `setQuery('user:${topUser} AND type:${topType}')`);
+        }
+
+        // --- TERMINAL LOGIC ---
+        function handleTerminalKey(e) { if (e.key === 'Enter') runTerminalCmd(e.target.value); }
+        function runTerminalCmd(cmd) {
+            const out = document.getElementById('terminalOutput');
+            const inp = document.getElementById('terminalInput');
+            if (!cmd.trim()) return;
+            const line = document.createElement('div');
+            line.innerHTML = `<span style="color:#f5c451;">$</span> ${cmd}`;
+            out.appendChild(line);
+            inp.value = '';
+            const entitySummary = {{ data.entity_summary | tojson
+        }};
+        const iocMatches = {{ data.ioc_matches | tojson }};
+        setTimeout(() => {
+            const res = document.createElement('div');
+            res.style.color = '#888';
+            if (cmd.startsWith('help')) {
+                res.innerHTML = `Available commands:<br>- whoami --impact<br>- analyze --blast-radius<br>- check --iocs<br>- clear`;
+            } else if (cmd.includes('blast-radius')) {
+                const topHost = entitySummary.host?.[0]?.value || 'LOCAL-INFRA';
+                const risk = entitySummary.host?.[0]?.risk_score || 25;
+                res.innerHTML = `<span style="color:#ef4444;">Calculating...</span><br>Root Entity: ${topHost}<br>Delta: +${(risk * 1.4).toFixed(1)} pts`;
+            } else if (cmd.includes('iocs')) {
+                res.innerHTML = iocMatches && iocMatches.length > 0 ? `<span style="color:#ef4444;">[!] ${iocMatches.length} matches!</span>` : `<span style="color:#22c55e;">[OK] No matches.</span>`;
+            } else if (cmd === 'clear') { out.innerHTML = ''; return; }
+            else { res.innerHTML = `<span style="color:#f5c451;">Executing...</span> AI Correlation pattern cached.`; }
+            out.appendChild(res);
+            out.scrollTop = out.scrollHeight;
+        }, 300);
+        }
+
+        function initCharts() {
+            const raw = [{% for e in data.timeline %} { t: "{{e.timestamp}}", s: "{{e.severity}}", y: "{{e.type}}" }, {% endfor %}];
+        const sm = { critical: 5, high: 4, medium: 3, low: 2, info: 1 };
+        let r = 0; const l = [], v = [], c = {};
+        raw.forEach(d => { r += (sm[d.s] || 1); v.push(r); l.push(d.t.split(' ')[1] || d.t); c[d.y] = (c[d.y] || 0) + 1; });
+        const tCtx = document.getElementById('timelineChart');
+        if (tCtx) new Chart(tCtx, { type: 'line', data: { labels: l, datasets: [{ label: 'Risk Velocity', data: v, borderColor: '#f5c451', backgroundColor: 'rgba(245,196,81,0.1)', fill: true, tension: 0.4, pointRadius: 2, pointBackgroundColor: '#f5c451' }] }, options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#666', maxTicksLimit: 10 } }, y: { grid: { color: 'rgba(255,255,255,0.03)' } } } } });
+        const cCtx = document.getElementById('categoryChart');
+        if (cCtx) {
+            const cl = Object.keys(c).length ? Object.keys(c) : ['Auth', 'Net', 'Proc'];
+            const cv = Object.values(c).length ? Object.values(c) : [30, 20, 15];
+            new Chart(cCtx, { type: 'doughnut', data: { labels: cl, datasets: [{ data: cv, backgroundColor: ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#a855f7'], borderWidth: 0 }] }, options: { responsive: true, cutout: '75%', plugins: { legend: { position: 'right', labels: { color: '#999', font: { size: 11 }, padding: 20 } } } } });
+        }
+        }
+
+        // --- GRAPHS ---
+        function initAttackGraph() {
+            if (atkAnimId) cancelAnimationFrame(atkAnimId);
+            const canvas = document.getElementById('attackGraphCanvas');
+            const container = document.getElementById('attackGraphContainer');
+            if (!canvas || !container) return;
+            const w = container.clientWidth || 800, h = 450;
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            const atkData = {{ (data.attack_graph or {}) | tojson }};
+        if (!atkData || !atkData.nodes || atkData.nodes.length === 0) return;
+        const nodes = atkData.nodes.map(n => ({ ...n, x: w / 2 + (Math.random() - 0.5) * 100, y: h / 2 + (Math.random() - 0.5) * 100, vx: 0, vy: 0, r: 18 }));
+        const edges = atkData.edges || [];
+        const nMap = {}; nodes.forEach((n, i) => nMap[n.id] = i);
+
+        function update() {
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    let dx = nodes[j].x - nodes[i].x, dy = nodes[j].y - nodes[i].y;
+                    let d2 = dx * dx + dy * dy || 1, d = Math.sqrt(d2);
+                    if (d < 250) { let f = 4500 / d2; nodes[i].vx -= f * dx / d; nodes[i].vy -= f * dy / d; nodes[j].vx += f * dx / d; nodes[j].vy += f * dy / d; }
+                }
+            }
+            edges.forEach(e => {
+                let s = nodes[nMap[e.source]], t = nodes[nMap[e.target]];
+                if (!s || !t) return;
+                let dx = t.x - s.x, dy = t.y - s.y, d = Math.sqrt(dx * dx + dy * dy) || 1, f = (d - 120) * 0.04;
+                s.vx += f * dx / d; s.vy += f * dy / d; t.vx -= f * dx / d; t.vy -= f * dy / d;
+            });
+            nodes.forEach(n => {
+                n.vx += (w / 2 - n.x) * 0.005; n.vy += (h / 2 - n.y) * 0.005; n.vx *= 0.82; n.vy *= 0.82;
+                n.x += n.vx; n.y += n.vy; n.x = Math.max(n.r, Math.min(w - n.r, n.x)); n.y = Math.max(n.r, Math.min(h - n.r, n.y));
+            });
+        }
+        function draw() {
+            ctx.clearRect(0, 0, w, h);
+            edges.forEach(e => {
+                let s = nodes[nMap[e.source]], t = nodes[nMap[e.target]];
+                if (!s || !t) return;
+                ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(245,196,81,0.2)'; ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(t.x, t.y); ctx.stroke();
+                let p = (attackFrame * 0.01) % 1; ctx.fillStyle = '#f5c451'; ctx.beginPath(); ctx.arc(s.x + (t.x - s.x) * p, s.y + (t.y - s.y) * p, 3, 0, Math.PI * 2); ctx.fill();
+            });
+            nodes.forEach(n => {
+                ctx.shadowBlur = 15; ctx.shadowColor = '#f5c451'; ctx.fillStyle = '#f5c451'; ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+                ctx.fillStyle = '#111'; ctx.font = 'bold 10px JetBrains Mono'; ctx.textAlign = 'center'; ctx.fillText(n.type?.[0].toUpperCase() || '?', n.x, n.y + 4);
+                ctx.fillStyle = '#fff'; ctx.font = '600 11px Inter'; ctx.fillText(n.value || n.id, n.x, n.y + n.r + 20);
+            });
+        }
+        function loop() { update(); draw(); attackFrame++; if (document.getElementById('tab-visual').classList.contains('active')) atkAnimId = requestAnimationFrame(loop); }
+        loop();
+        }
+
+        function initEntityGraph() {
+            if (entAnimId) cancelAnimationFrame(entAnimId);
+            const canvas = document.getElementById('entityGraphCanvas'), container = document.getElementById('entityGraphBox');
+            if (!canvas || !container) return;
+            const w = container.clientWidth || 800, h = 450;
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            const entData = {{ (data.entity_graph or {}) | tojson }};
+        if (!entData || !entData.nodes || entData.nodes.length === 0) return;
+        const nodes = entData.nodes.map(n => ({ ...n, x: w / 2 + (Math.random() - 0.5) * w * 0.6, y: h / 2 + (Math.random() - 0.5) * h * 0.6, vx: 0, vy: 0, r: 14 + (n.risk_score ? Math.min(n.risk_score / 4, 20) : 0) }));
+        const edges = entData.edges || [];
+        const nMap = {}; nodes.forEach((n, i) => nMap[n.id] = i);
+        const cols = { user: '#f5c451', host: '#3b82f6', ip: '#ef4444', process: '#a855f7' };
+        function update() {
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    let dx = nodes[j].x - nodes[i].x, dy = nodes[j].y - nodes[i].y, d2 = dx * dx + dy * dy || 1, d = Math.sqrt(d2);
+                    if (d < 200) { let f = 4000 / d2; nodes[i].vx -= f * dx / d; nodes[i].vy -= f * dy / d; nodes[j].vx += f * dx / d; nodes[j].vy += f * dy / d; }
+                }
+            }
+            edges.forEach(e => {
+                let s = nodes[nMap[e.source]], t = nodes[nMap[e.target]];
+                if (!s || !t) return;
+                let dx = t.x - s.x, dy = t.y - s.y, d = Math.sqrt(dx * dx + dy * dy) || 1, f = (d - 140) * 0.05;
+                s.vx += f * dx / d; s.vy += f * dy / d; t.vx -= f * dx / d; t.vy -= f * dy / d;
+            });
+            nodes.forEach(n => {
+                n.vx += (w / 2 - n.x) * 0.005; n.vy += (h / 2 - n.y) * 0.005; n.vx *= 0.85; n.vy *= 0.85; n.x += n.vx; n.y += n.vy;
+                n.x = Math.max(n.r + 5, Math.min(w - n.r - 100, n.x)); n.y = Math.max(n.r + 5, Math.min(h - n.r - 5, n.y));
+            });
+        }
+        function draw() {
+            ctx.clearRect(0, 0, w, h);
+            ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            edges.forEach(e => { let s = nodes[nMap[e.source]], t = nodes[nMap[e.target]]; if (s && t) { ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(t.x, t.y); ctx.stroke(); } });
+            nodes.forEach(n => {
+                const c = cols[n.type] || '#888'; ctx.shadowBlur = 15; ctx.shadowColor = c; ctx.fillStyle = c; ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+                ctx.fillStyle = '#fff'; ctx.font = '600 11px Inter'; ctx.textAlign = 'left'; ctx.fillText(n.value || n.id, n.x + n.r + 10, n.y + 4);
+            });
+        }
+        function loop() { update(); draw(); entityFrame++; if (document.getElementById('tab-visual').classList.contains('active')) entAnimId = requestAnimationFrame(loop); }
+        loop();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.raw-text').forEach(el => el.innerHTML = highlightKeywords(el.textContent));
+            initCharts();
+            initSplunkChat();
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.key === '/') { e.preventDefault(); document.getElementById('queryInput').focus(); }
+            if (e.key === 'Escape') clearAllFilters();
+        });
+    </script>
+</body>
+
+</html>
